@@ -1,0 +1,21 @@
+name: gender_classification
+description: A gender classification app using voice analysis
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.12.0 <3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_sound: ^9.2.13
+  path_provider: ^2.0.11
+  permission_handler: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true

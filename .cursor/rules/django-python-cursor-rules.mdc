@@ -1,0 +1,71 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+**Cursor Rule: Gender Classification Product without Machine Learning**
+
+**Objective**: Develop a production-ready gender classification system (Male vs Female) based on recorded voice, using a web application (Desktop) and a mobile application (Android), without machine learning.
+
+**System Overview**:
+- **Web App**: Built with Flask (Python) backend and HTML5/JavaScript (Web Audio API) frontend, running in a browser.
+- **Mobile App**: Built with Flutter (Dart) for Android, using `flutter_sound` for audio processing.
+- **Core Feature**: Extract fundamental frequency (F0) via autocorrelation and classify gender using a fixed threshold (165 Hz).
+
+**System Requirements**:
+1. **Input**: Real-time audio from microphone.
+2. **Processing**:
+   - Sample rate: 16 kHz.
+   - Frame size: 1024 samples (~64ms).
+   - Feature: Fundamental frequency (F0) extracted using autocorrelation.
+   - Threshold: 165 Hz (F0 < 165 Hz → Male, F0 ≥ 165 Hz → Female).
+3. **Output**: Display F0 value and gender (Male/Female) on UI.
+
+**Web App (Flask + Web Audio API)**:
+1. **Frontend**:
+   - Use Web Audio API to capture audio at 16 kHz.
+   - Send audio frames (1024 samples) to backend via POST request.
+   - Display result (F0 and gender) on HTML page.
+2. **Backend**:
+   - Flask server to receive audio data, compute F0, and return classification.
+   - Autocorrelation formula: R(k) = Σ x(n) * x(n+k), F0 = sample_rate / k_max.
+3. **UI**: Buttons for "Record" and "Stop", text area for result.
+
+**Mobile App (Flutter)**:
+1. **Audio Capture**:
+   - Use `flutter_sound` plugin to record audio at 16 kHz.
+   - Buffer size: 1024 samples.
+2. **Processing**:
+   - Compute F0 using autocorrelation in Dart.
+   - Classify gender based on 165 Hz threshold.
+3. **UI**: Single screen with "Record" and "Stop" buttons, text widget for result.
+
+**Steps**:
+1. **Audio Capture**:
+   - Web: Web Audio API captures and streams audio to Flask.
+   - Mobile: `flutter_sound` records audio and provides raw data.
+2. **Preprocessing**:
+   - Normalize audio amplitude to [-1, 1].
+   - Process in 1024-sample frames.
+3. **Feature Extraction**:
+   - Compute autocorrelation for each frame.
+   - Find first significant peak (k > 50) to estimate F0.
+4. **Classification**:
+   - Compare F0 with 165 Hz threshold.
+5. **Output**:
+   - Web: Update HTML element with result.
+   - Mobile: Update Text widget with result.
+
+**Optimization**:
+- Web: Process frames incrementally to reduce latency.
+- Mobile: Process audio only on "Stop" to save resources.
+- Both: Skip silent frames (energy < threshold).
+
+**Constraints**:
+- No machine learning allowed.
+- Must be lightweight and real-time capable.
+- Web app must run in modern browsers; mobile app targets Android.
+
+**Deliverables**:
+- Web: Flask server + HTML/JS frontend.
+- Mobile: Flutter app for Android.

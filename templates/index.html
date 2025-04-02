@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gender Classification</title>
+    <!-- Bootstrap 5 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .main-container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .card {
+        border-radius: 15px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        border: none;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+      }
+      .btn-record {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 12px 30px;
+        font-size: 18px;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        color: white;
+      }
+      .btn-record:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        color: white;
+      }
+      .btn-stop {
+        background: #dc3545;
+        border: none;
+        padding: 12px 30px;
+        font-size: 18px;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        color: white;
+      }
+      .btn-stop:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        color: white;
+      }
+      .result-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        min-height: 100px;
+        transition: all 0.3s ease;
+      }
+      .chart-container {
+        margin-top: 20px;
+        height: 300px;
+        width: 100%;
+      }
+      .recording-animation {
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .gender-icon {
+        font-size: 24px;
+        margin-right: 10px;
+      }
+      .btn-record:disabled,
+      .btn-stop:disabled {
+        background: #cccccc;
+        transform: none;
+        box-shadow: none;
+      }
+      .result-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+      .timer {
+        font-size: 24px;
+        font-weight: bold;
+        color: #667eea;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="card">
+        <div class="card-header text-center">
+          <h2 class="mb-0">
+            <i class="fas fa-venus-mars me-2"></i>
+            Gender Classification System
+          </h2>
+        </div>
+        <div class="card-body text-center">
+          <p class="text-muted mb-4">
+            Record your voice for analysis. Speak naturally for best results.
+          </p>
+
+          <div class="timer mb-3" id="timer">00:00</div>
+
+          <div class="d-flex justify-content-center gap-3 mb-4">
+            <button id="recordButton" class="btn btn-record">
+              <i class="fas fa-microphone me-2"></i>Record
+            </button>
+            <button id="stopButton" class="btn btn-stop" disabled>
+              <i class="fas fa-stop me-2"></i>Stop
+            </button>
+          </div>
+
+          <div class="result-section">
+            <div id="result" class="result-box">
+              <div id="resultText" class="text-center">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                Click record to start analysis
+              </div>
+            </div>
+
+            <div id="chartSection" class="mt-4" style="display: none">
+              <div id="chartContainer" class="chart-container">
+                <canvas id="f0Chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // Wait for DOM to be fully loaded
+      document.addEventListener('DOMContentLoaded', function () {
+        const SAMPLE_RATE = 16000;
+        const FRAME_SIZE = 1024;
+        let audioContext;
+        let mediaStream;
+        let processor;
+        let isRecording = false;
+        let recordedChunks = [];
+        let startTime;
+        let timerInterval;
+        let f0Chart = null;
+
+        // Get DOM elements
+        const elements = {
+          recordButton: document.getElementById('recordButton'),
+          stopButton: document.getElementById('stopButton'),
+          resultText: document.getElementById('resultText'),
+          chartSection: document.getElementById('chartSection'),
+          timer: document.getElementById('timer'),
+        };
+
+        // Ensure all elements are found
+        for (const [key, element] of Object.entries(elements)) {
+          if (!element) {
+            console.error(`Element not found: ${key}`);
+            return;
+          }
+        }
+
+        function updateTimer() {
+          const now = Date.now();
+          const diff = now - startTime;
+          const seconds = Math.floor(diff / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          elements.timer.textContent = `${minutes
+            .toString()
+            .padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function createF0Chart(timestamps, f0Values) {
+          const canvas = document.getElementById('f0Chart');
+          if (!canvas) {
+            console.error('Chart canvas not found');
+            return;
+          }
+
+          const ctx = canvas.getContext('2d');
+          if (f0Chart) {
+            f0Chart.destroy();
+          }
+
+          f0Chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: timestamps,
+              datasets: [
+                {
+                  label: 'Fundamental Frequency (F0)',
+                  data: f0Values,
+                  borderColor: '#667eea',
+                  backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                  fill: true,
+                  tension: 0.4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'F0 Frequency Over Time',
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Frequency (Hz)',
+                  },
+                },
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Time (seconds)',
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        async function startRecording() {
+          try {
+            audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)({
+              sampleRate: SAMPLE_RATE,
+            });
+
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+
+            processor = audioContext.createScriptProcessor(FRAME_SIZE, 1, 1);
+            recordedChunks = [];
+
+            processor.onaudioprocess = (e) => {
+              if (!isRecording) return;
+              const inputData = e.inputBuffer.getChannelData(0);
+              recordedChunks.push(new Float32Array(inputData));
+            };
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            isRecording = true;
+            elements.recordButton.disabled = true;
+            elements.stopButton.disabled = false;
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+
+            elements.resultText.innerHTML = `
+              <div class="recording-animation text-center">
+                <i class="fas fa-microphone-alt text-primary me-2"></i>
+                Recording in progress...
+              </div>
+            `;
+            elements.chartSection.style.display = 'none';
+          } catch (error) {
+            elements.resultText.innerHTML = `
+              <div class="text-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Error: ${error.message}
+              </div>
+            `;
+          }
+        }
+
+        function stopRecording() {
+          try {
+            if (mediaStream) {
+              mediaStream.getTracks().forEach((track) => track.stop());
+            }
+            if (audioContext) {
+              audioContext.close();
+            }
+
+            clearInterval(timerInterval);
+            isRecording = false;
+            elements.recordButton.disabled = false;
+            elements.stopButton.disabled = true;
+
+            elements.resultText.innerHTML = `
+              <div class="text-primary">
+                <i class="fas fa-cog fa-spin me-2"></i>
+                Processing audio...
+              </div>
+            `;
+
+            const totalLength = recordedChunks.reduce(
+              (acc, chunk) => acc + chunk.length,
+              0
+            );
+            const combinedData = new Float32Array(totalLength);
+            let offset = 0;
+            recordedChunks.forEach((chunk) => {
+              combinedData.set(chunk, offset);
+              offset += chunk.length;
+            });
+
+            fetch('/classify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                audio_data: Array.from(combinedData),
+              }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.error) {
+                  let errorMessage = `
+                    <div class="text-danger">
+                      <i class="fas fa-exclamation-circle me-2"></i>
+                      <strong>${data.error}</strong>
+                  `;
+
+                  // Add details if available
+                  if (data.details) {
+                    if (typeof data.details === 'object') {
+                      errorMessage += `
+                        <div class="mt-2 text-muted small">
+                          <div>Voice Content: ${data.details.voice_ratio}%</div>
+                          <div>${data.details.message}</div>
+                        </div>
+                      `;
+                    } else {
+                      errorMessage += `
+                        <div class="mt-2 text-muted small">
+                          ${data.details}
+                        </div>
+                      `;
+                    }
+                  }
+
+                  errorMessage += '</div>';
+                  elements.resultText.innerHTML = errorMessage;
+                  elements.chartSection.style.display = 'none';
+                } else {
+                  const genderIcon =
+                    data.gender === 'Female'
+                      ? '<i class="fas fa-venus gender-icon text-danger"></i>'
+                      : '<i class="fas fa-mars gender-icon text-primary"></i>';
+
+                  // Create confidence indicator
+                  const confidence = data.analysis_details.confidence;
+                  const confidenceColor =
+                    confidence > 80
+                      ? 'success'
+                      : confidence > 60
+                      ? 'warning'
+                      : 'danger';
+
+                  const confidenceBar = `
+                    <div class="mt-2">
+                      <div class="d-flex justify-content-between small mb-1">
+                        <span>Confidence</span>
+                        <span>${confidence}%</span>
+                      </div>
+                      <div class="progress" style="height: 5px;">
+                        <div class="progress-bar bg-${confidenceColor}" 
+                             role="progressbar" 
+                             style="width: ${confidence}%" 
+                             aria-valuenow="${confidence}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                      </div>
+                    </div>
+                  `;
+
+                  elements.resultText.innerHTML = `
+                    <div class="result-card">
+                      ${genderIcon}
+                      <strong>Analysis Results:</strong><br>
+                      Average F0: <strong>${data.average_f0.toFixed(
+                        2
+                      )} Hz</strong><br>
+                      Gender: <strong>${data.gender}</strong>
+                      ${confidenceBar}
+                      <div class="mt-2 text-muted small">
+                        <div>Voice Content: ${
+                          data.analysis_details.voice_ratio
+                        }%</div>
+                        <div>F0 Consistency: ${
+                          data.analysis_details.f0_consistency
+                        }%</div>
+                      </div>
+                    </div>
+                  `;
+
+                  elements.chartSection.style.display = 'block';
+                  createF0Chart(
+                    data.timestamps.map((t) => (t / SAMPLE_RATE).toFixed(1)),
+                    data.f0_values
+                  );
+                }
+              })
+              .catch((error) => {
+                elements.resultText.innerHTML = `
+                <div class="text-danger">
+                  <i class="fas fa-exclamation-circle me-2"></i>
+                  Error: ${error.message}
+                </div>
+              `;
+                elements.chartSection.style.display = 'none';
+              });
+          } catch (error) {
+            elements.resultText.innerHTML = `
+              <div class="text-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Error: ${error.message}
+              </div>
+            `;
+            elements.chartSection.style.display = 'none';
+          }
+        }
+
+        // Add event listeners
+        elements.recordButton.addEventListener('click', startRecording);
+        elements.stopButton.addEventListener('click', stopRecording);
+      });
+    </script>
+  </body>
+</html>
